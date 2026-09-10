@@ -1,17 +1,17 @@
-# linux bash script for automatic keyboard backlight on laptops
-#
-# oneloopsol.com
-# Created in co-operation with ChatGPT, no edits by me
-#
-# Intent is a laptop brand independent script for automatic keyboard backlighting
-#
-# Turns off the backlight after 20 seconds (change parameter in script, then run './auto-kbd-brightness install' again)
-# Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
-#   Does not turn on backlight if screen brightness is above 200 (i.e. 50%)
-#
-# Not tested that much, but it works for me. I immediately like it.
+linux bash script for automatic keyboard backlight on laptops
 
-# Usage:
+oneloopsol.com
+Created in co-operation with ChatGPT, no edits by me
+
+Intent is a laptop brand independent script for automatic keyboard backlighting
+
+Turns off the backlight after 20 seconds (change parameter in script, then run './auto-kbd-brightness install' again)
+Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
+  Does not turn on backlight if screen brightness is above 200 (i.e. 50%)
+
+Not tested that much, but it works for me. I immediately like it.
+
+Usage:
 
 chmod +x auto-kbd-backlight
 ./auto-kbd-backlight
