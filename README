@@ -5,7 +5,7 @@
 #
 # Intent is a laptop brand independent script for automatic keyboard backlighting
 #
-# Turns off the backlight after 20 seconds (change parameter in script, then run install again)
+# Turns off the backlight after 20 seconds (change parameter in script, then run './auto-kbd-brightness install' again)
 # Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
 #
 # Not tested that much, but it works for me. I immediately like it.
