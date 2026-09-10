@@ -14,4 +14,4 @@ Not tested that much, but it works for me. I immediately like it.
 Usage:
 
 chmod +x auto-kbd-backlight
-./auto-kbd-backlight
+./auto-kbd-backlight install
