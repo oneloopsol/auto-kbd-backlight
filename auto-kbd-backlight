@@ -9,10 +9,12 @@
 #
 # Turns off the backlight after 20 seconds (change parameter in script, then run './auto-kbd-brightness install' again)
 # Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
+#   Does not turn on backlight if screen brightness is above 200 (i.e. 50%)
 #
 # Not tested that much, but it works for me. I immediately like it.
 
 TIMEOUT=20
+SCREEN_BRIGHTNESS_LIMIT=200
 
 INSTALL_PATH="/usr/local/bin/auto-kbd-backlight"
 UDEV_RULE="/etc/udev/rules.d/99-auto-kbd-backlight.rules"
@@ -82,6 +84,36 @@ find_backlight()
 }
 
 
+find_screen_brightness()
+{
+    local matches=()
+    local path
+
+    for path in /sys/class/backlight/*/brightness; do
+        [[ -f "$path" ]] && matches+=("$path")
+    done
+
+    case ${#matches[@]} in
+        0)
+            echo "No screen brightness control found." >&2
+            return 1
+            ;;
+
+        1)
+            printf '%s\n' "${matches[0]}"
+            ;;
+
+        *)
+            echo "Multiple screen brightness controls found:" >&2
+            printf '    %s\n' "${matches[@]}" >&2
+            echo >&2
+            echo "Cannot determine which one to use." >&2
+            return 1
+            ;;
+    esac
+}
+
+
 find_keyboard()
 {
     local device
@@ -103,6 +135,7 @@ find_keyboard()
 check_setup()
 {
     local keyboard
+    local screen_brightness
 
     keyboard=$(find_keyboard)
 
@@ -124,6 +157,21 @@ check_setup()
         return 1
     fi
 
+    screen_brightness=$(find_screen_brightness)
+
+    if [[ -z "$screen_brightness" ]]; then
+        echo "No screen brightness control found."
+        echo
+        echo "A screen brightness control is required to determine"
+        echo "whether the keyboard backlight should be turned on."
+        echo
+        echo "Run:"
+        echo
+        echo "    $0 install"
+        echo
+        return 1
+    fi
+
     return 0
 }
 
@@ -131,6 +179,7 @@ check_setup()
 install()
 {
     local brightness
+    local screen_brightness
     local keyboard
     local id_path
     local user
@@ -143,9 +192,14 @@ install()
     check_libinput || return 1
 
     brightness=$(find_backlight) || return 1
+    screen_brightness=$(find_screen_brightness) || return 1
 
     echo "Keyboard backlight:"
     echo "    $brightness"
+    echo
+
+    echo "Screen brightness:"
+    echo "    $screen_brightness"
     echo
 
     keyboard=$(find_keyboard)
@@ -245,12 +299,14 @@ uninstall()
 run_daemon()
 {
     local brightness
+    local screen_brightness
     local keyboard
     local timer_pid=0
 
     check_libinput || return 1
 
     brightness=$(find_backlight) || return 1
+    screen_brightness=$(find_screen_brightness) || return 1
 
     keyboard=$(find_keyboard)
 
@@ -262,11 +318,14 @@ run_daemon()
     check_setup || return 1
 
     echo "Keyboard backlight: $brightness"
-    echo "Keyboard: $keyboard"
+    echo "Screen brightness:  $screen_brightness"
+    echo "Keyboard:           $keyboard"
 
     turn_on()
     {
-        printf '1\n' > "$brightness"
+        if (( $(<"$screen_brightness") <= SCREEN_BRIGHTNESS_LIMIT )); then
+            printf '1\n' > "$brightness"
+        fi
     }
 
     turn_off()
@@ -282,12 +341,11 @@ run_daemon()
 
         (
             sleep "$TIMEOUT"
-            turn_off
+            printf '0\n' > "$brightness"
         ) &
 
         timer_pid=$!
     }
-
     cleanup()
     {
         if (( timer_pid > 0 )); then
@@ -308,6 +366,7 @@ run_daemon()
             grep --line-buffered 'KEYBOARD_KEY.*pressed'
     )
 }
+
 
 case "$1" in
     "")
