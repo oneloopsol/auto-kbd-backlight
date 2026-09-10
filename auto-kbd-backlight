@@ -1,0 +1,323 @@
+#!/bin/bash
+#
+# oneloopsol.com
+# Created in cooperation with ChatGPT
+#
+# Intent is a brand indendent script for laptops with keyboard backlight
+# Turns off the backlight after 60 seconds (parameter in script)
+# Turns backlight back on, on any keypress
+#
+# Not tested that much
+
+TIMEOUT=60
+
+INSTALL_PATH="/usr/local/bin/auto-kbd-backlight"
+UDEV_RULE="/etc/udev/rules.d/99-auto-kbd-backlight.rules"
+SERVICE_DIR="$HOME/.config/systemd/user"
+SERVICE_FILE="$SERVICE_DIR/auto-kbd-backlight.service"
+
+
+usage()
+{
+    cat <<EOF
+Usage: $0 [install|uninstall|help]
+
+    $0              Run daemon
+    $0 install      Install daemon and systemd user service
+    $0 uninstall    Remove daemon and systemd user service
+    $0 help         Show this help
+EOF
+}
+
+
+check_libinput()
+{
+    if ! command -v libinput >/dev/null 2>&1; then
+        echo "libinput not found."
+        echo
+        echo "Please install it with:"
+        echo
+        echo "    sudo apt install libinput-tools"
+        echo
+        return 1
+    fi
+}
+
+
+find_backlight()
+{
+    local matches=()
+    local path
+
+    while IFS= read -r path; do
+        matches+=("$path")
+    done < <(
+        find /sys/devices/platform \
+            -type f \
+            -path '*/leds/*:kbd_backlight/brightness' \
+            -print 2>/dev/null
+    )
+
+    case ${#matches[@]} in
+        0)
+            echo "No keyboard backlight found." >&2
+            return 1
+            ;;
+
+        1)
+            printf '%s\n' "${matches[0]}"
+            ;;
+
+        *)
+            echo "Multiple keyboard backlights found:" >&2
+            printf '    %s\n' "${matches[@]}" >&2
+            echo >&2
+            echo "Cannot determine which one to use." >&2
+            return 1
+            ;;
+    esac
+}
+
+
+find_keyboard()
+{
+    local device
+
+    for device in /dev/input/event*; do
+        [[ -e "$device" ]] || continue
+
+        if udevadm info --query=property --name="$device" 2>/dev/null |
+            grep -q '^ID_INPUT_KEYBOARD=1$'; then
+            echo "$device"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+
+check_setup()
+{
+    local keyboard
+
+    keyboard=$(find_keyboard)
+
+    if [[ -z "$keyboard" ]]; then
+        echo "No keyboard input device found." >&2
+        return 1
+    fi
+
+    if [[ ! -r "$keyboard" ]]; then
+        echo "Keyboard input device is not accessible:"
+        echo "    $keyboard"
+        echo
+        echo "The udev rule has probably not been installed."
+        echo
+        echo "Run:"
+        echo
+        echo "    $0 install"
+        echo
+        return 1
+    fi
+
+    return 0
+}
+
+
+install()
+{
+    local brightness
+    local keyboard
+    local id_path
+    local user
+
+    if [[ $EUID -eq 0 ]]; then
+        echo "Please run this as your normal user."
+        return 1
+    fi
+
+    check_libinput || return 1
+
+    brightness=$(find_backlight) || return 1
+
+    echo "Keyboard backlight:"
+    echo "    $brightness"
+    echo
+
+    keyboard=$(find_keyboard)
+
+    if [[ -z "$keyboard" ]]; then
+        echo "No keyboard input device found."
+        return 1
+    fi
+
+    echo "Keyboard:"
+    echo "    $keyboard"
+
+    id_path=$(udevadm info --query=property --name="$keyboard" 2>/dev/null |
+        sed -n 's/^ID_PATH=//p')
+
+    if [[ -z "$id_path" ]]; then
+        echo "Could not determine ID_PATH for keyboard."
+        return 1
+    fi
+
+    echo "Keyboard ID_PATH:"
+    echo "    $id_path"
+    echo
+
+    user="$USER"
+
+    echo "Installing udev rule..."
+
+    sudo tee "$UDEV_RULE" >/dev/null <<EOF
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_PATH}=="$id_path", OWNER="$user", MODE="0600"
+EOF
+
+    sudo udevadm control --reload-rules
+    sudo udevadm trigger --subsystem-match=input
+
+    echo "Installing daemon..."
+
+    sudo cp "$(readlink -f "$0")" "$INSTALL_PATH"
+    sudo chmod 755 "$INSTALL_PATH"
+
+    echo "Installing systemd user service..."
+
+    mkdir -p "$SERVICE_DIR"
+
+    cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=Automatic keyboard backlight
+
+[Service]
+ExecStart=$INSTALL_PATH
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+
+    systemctl --user daemon-reload
+    systemctl --user enable auto-kbd-backlight.service
+    systemctl --user restart auto-kbd-backlight.service
+
+    echo
+    echo "auto-kbd-backlight installed and restarted."
+}
+
+
+uninstall()
+{
+    if [[ $EUID -eq 0 ]]; then
+        echo "Please run this as your normal user."
+        return 1
+    fi
+
+    echo "Stopping service..."
+
+    systemctl --user disable --now auto-kbd-backlight.service 2>/dev/null || true
+
+    rm -f "$SERVICE_FILE"
+    systemctl --user daemon-reload
+
+    if [[ -f "$UDEV_RULE" ]]; then
+        echo "Removing udev rule..."
+
+        sudo rm -f "$UDEV_RULE"
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --subsystem-match=input
+    fi
+
+    echo "Removing daemon..."
+
+    sudo rm -f "$INSTALL_PATH"
+
+    echo
+    echo "auto-kbd-backlight uninstalled."
+}
+
+
+run_daemon()
+{
+    local brightness
+    local timer_pid=0
+
+    check_libinput || return 1
+
+    brightness=$(find_backlight) || return 1
+
+    check_setup || return 1
+
+    echo "Keyboard backlight: $brightness"
+
+    turn_on()
+    {
+        printf '1\n' > "$brightness"
+    }
+
+    turn_off()
+    {
+        printf '0\n' > "$brightness"
+    }
+
+    reset_timer()
+    {
+        if (( timer_pid > 0 )); then
+            kill "$timer_pid" 2>/dev/null
+        fi
+
+        (
+            sleep "$TIMEOUT"
+            turn_off
+        ) &
+
+        timer_pid=$!
+    }
+
+    cleanup()
+    {
+        if (( timer_pid > 0 )); then
+            kill "$timer_pid" 2>/dev/null
+        fi
+    }
+
+    trap cleanup EXIT INT TERM
+
+    turn_on
+    reset_timer
+
+    while read -r line; do
+        if [[ "$line" == *"KEYBOARD_KEY"* ]]; then
+            turn_on
+            reset_timer
+        fi
+    done < <(libinput debug-events 2>/dev/null)
+}
+
+
+case "$1" in
+    "")
+        run_daemon
+        ;;
+
+    install)
+        install
+        ;;
+
+    uninstall)
+        uninstall
+        ;;
+
+    help|-h|--help)
+        usage
+        ;;
+
+    *)
+        echo "Unknown argument: $1"
+        echo
+        usage
+        exit 1
+        ;;
+esac
