@@ -3,7 +3,7 @@
 #
 # Intent is a brand independent script for laptops with keyboard backlight
 # Turns off the backlight after 20 seconds (change parameter in script, then run install)
-# Turns backlight automatically back on, on any keypress
+# Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
 #
 # Not tested that much, but it works for me
 #
