@@ -8,6 +8,7 @@
 # Turns backlight automatically back on, on any keypress
 #
 # Not tested that much, but it works for me
+#
 # I immediately like it
 
 TIMEOUT=20
