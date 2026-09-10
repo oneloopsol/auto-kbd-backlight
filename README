@@ -8,9 +8,7 @@
 # Turns off the backlight after 20 seconds (change parameter in script, then run install again)
 # Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
 #
-# Not tested that much, but it works for me
-#
-# I immediately like it
+# Not tested that much, but it works for me. I immediately like it.
 
 # Usage:
 
