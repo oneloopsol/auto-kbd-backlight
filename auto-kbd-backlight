@@ -247,15 +247,24 @@ uninstall()
 run_daemon()
 {
     local brightness
+    local keyboard
     local timer_pid=0
 
     check_libinput || return 1
 
     brightness=$(find_backlight) || return 1
 
+    keyboard=$(find_keyboard)
+
+    if [[ -z "$keyboard" ]]; then
+        echo "No keyboard input device found." >&2
+        return 1
+    fi
+
     check_setup || return 1
 
     echo "Keyboard backlight: $brightness"
+    echo "Keyboard: $keyboard"
 
     turn_on()
     {
@@ -293,14 +302,14 @@ run_daemon()
     turn_on
     reset_timer
 
-    while read -r line; do
-        if [[ "$line" == *"KEYBOARD_KEY"* ]]; then
-            turn_on
-            reset_timer
-        fi
-    done < <(libinput debug-events 2>/dev/null)
+    while read -r _; do
+        turn_on
+        reset_timer
+    done < <(
+        libinput debug-events --device "$keyboard" 2>/dev/null |
+            grep --line-buffered 'KEYBOARD_KEY.*pressed'
+    )
 }
-
 
 case "$1" in
     "")
