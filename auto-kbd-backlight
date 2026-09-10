@@ -3,7 +3,7 @@
 # oneloopsol.com
 # Created in cooperation with ChatGPT, unedited by me
 #
-# Intent is a brand independent script for laptops with keyboard backlight
+# Intent is a laptop brand independent script for automatic keyboard backlighting
 #
 # Turns off the backlight after 20 seconds (change parameter in script, then run install)
 # Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
