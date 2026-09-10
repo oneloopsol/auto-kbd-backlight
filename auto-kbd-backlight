@@ -3,11 +3,11 @@
 # linux bash script for automatic keyboard backlight on laptops
 #
 # oneloopsol.com
-# Created in cooperation with ChatGPT, unedited by me
+# Created in co-operation with ChatGPT, unedited by me
 #
 # Intent is a laptop brand independent script for automatic keyboard backlighting
 #
-# Turns off the backlight after 20 seconds (change parameter in script, then run install)
+# Turns off the backlight after 20 seconds (change parameter in script, then run install again)
 # Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
 #
 # Not tested that much, but it works for me
