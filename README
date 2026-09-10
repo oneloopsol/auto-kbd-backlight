@@ -1,0 +1,13 @@
+# oneloopsol.com
+# Created in cooperation with ChatGPT
+#
+# Intent is a brand independent script for laptops with keyboard backlight
+# Turns off the backlight after 60 seconds (parameter in script),
+# and automatically back on, on any keypress
+#
+# Not tested that much, but it works for me
+
+# Usage:
+
+chmod +x auto-kbd-backlight
+./auto-kbd-backlight
