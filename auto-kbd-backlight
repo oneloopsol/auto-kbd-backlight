@@ -229,6 +229,16 @@ install()
 
     user="$USER"
 
+    echo "The installation now needs sudo privileges."
+    echo "This is required to install the udev rule, daemon and systemd service."
+    echo
+
+    sudo -v || {
+        echo
+        echo "Could not obtain sudo privileges."
+        return 1
+    }
+
     echo "Installing udev rule..."
 
     sudo tee "$UDEV_RULE" >/dev/null <<EOF
