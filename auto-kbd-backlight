@@ -9,12 +9,15 @@
 #
 # Turns off the backlight after 20 seconds (change parameter in script, then run './auto-kbd-brightness install' again)
 # Turns backlight automatically back on, on any keypress (even "passive" keys Ctrl, Shift, Alt)
-#   Does not turn on backlight if screen brightness is above 40% (i.e. 160 in kernel value)
+#   Backlight is always OFF if screen brightness is above 40% (i.e. 160 in kernel value)
+#   Backlight is always ON  if screen brightness is 10% or lower (i.e. 40 in kernel value)
 #
 # Not tested that much, but it works for me. I immediately like it.
 
 TIMEOUT=20
-SCREEN_BRIGHTNESS_LIMIT=160  # 40%
+
+SCREEN_BRIGHTNESS_ALWAYS_ON=40          # 10%
+SCREEN_BRIGHTNESS_ALWAYS_OFF_ABOVE=160  # 40%
 
 INSTALL_PATH="/usr/local/bin/auto-kbd-backlight"
 UDEV_RULE="/etc/udev/rules.d/99-auto-kbd-backlight.rules"
@@ -323,7 +326,7 @@ run_daemon()
 
     turn_on()
     {
-        if (( $(<"$screen_brightness") <= SCREEN_BRIGHTNESS_LIMIT )); then
+        if (( $(<"$screen_brightness") <= SCREEN_BRIGHTNESS_ALWAYS_OFF_ABOVE )); then
             printf '1\n' > "$brightness"
         fi
     }
@@ -339,13 +342,25 @@ run_daemon()
             kill "$timer_pid" 2>/dev/null
         fi
 
+        if (( $(<"$screen_brightness") <= SCREEN_BRIGHTNESS_ALWAYS_ON )); then
+            printf '1\n' > "$brightness"
+            timer_pid=0
+            return
+        fi
+
         (
             sleep "$TIMEOUT"
-            printf '0\n' > "$brightness"
+
+            if (( $(<"$screen_brightness") <= SCREEN_BRIGHTNESS_ALWAYS_ON )); then
+                printf '1\n' > "$brightness"
+            else
+                printf '0\n' > "$brightness"
+            fi
         ) &
 
         timer_pid=$!
     }
+
     cleanup()
     {
         if (( timer_pid > 0 )); then
@@ -392,3 +407,4 @@ case "$1" in
         exit 1
         ;;
 esac
+
