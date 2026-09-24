@@ -1,6 +1,8 @@
 linux bash script for automatic keyboard backlight on laptops
 oneloopsol.com
 
+GPL-3.0-or-later
+
 Created in co-operation with ChatGPT, no edits by me.
 
 Intent is a laptop brand independent script for automatic keyboard backlighting
